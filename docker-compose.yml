@@ -1,0 +1,37 @@
+services:
+  consumer:
+    build:
+      context: .
+      dockerfile: consumer/Dockerfile
+    container_name: consumer
+    ports:
+      - "3000:3000"
+      - "50051:50051"
+    volumes:
+      - "./consumer/storage:/app/consumer/storage"
+    environment:
+      - QUEUE_SIZE=10
+      - CONSUMER_THREADS=4
+    networks:
+      - upload-network
+  
+  producer:
+    build:
+      context: .
+      dockerfile: producer/Dockerfile
+    container_name: producer
+    depends_on:
+      - consumer
+    volumes:
+      - "./producer/storage:/app/producer/videos1"
+      - "./producer/storage:/app/producer/videos2"
+    environment:
+      - CONSUMER_HOST=consumer
+      - CONSUMER_PORT=50051
+      - PRODUCER_THREADS=2
+    networks:
+      - upload-network
+
+networks:
+  upload-network:
+    driver: bridge
