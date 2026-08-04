@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "producer": "node producer/app.js",
+    "consumer": "node consumer/app.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,11 @@
   "homepage": "https://github.com/ReythemGespenst/DISCM-P3#readme",
   "dependencies": {
     "@grpc/grpc-js": "^1.14.4",
-    "docker": "^1.0.0"
+    "@grpc/proto-loader": "^0.8.1",
+    "better-sqlite3": "^13.0.2",
+    "docker": "^1.0.0",
+    "express": "^5.2.1",
+    "ffmpeg-static": "^5.3.0",
+    "fluent-ffmpeg": "^2.1.3"
   }
 }
