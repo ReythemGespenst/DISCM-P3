@@ -1,0 +1,20 @@
+syntax = "proto3"
+
+package uploadservice;
+
+service UploadService {
+    rpc UploadVideo(stream VideoChunk) returns (UploadResponse);
+}
+
+message VideoChunk {
+    bytes content = 1;
+    string filename = 2;
+    int 64 total_size = 3;
+    string producer_id = 4;
+}
+
+message UploadResponse {
+    bool accepted = 1;
+    string message = 2;
+    string file_id = 3;
+}
