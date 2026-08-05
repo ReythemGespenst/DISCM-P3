@@ -112,3 +112,5 @@ async function producerWorker(producerId, folderPath) {
 
     console.log(`Producer ${producerId}: Finished processing all video files in ${folderPath}.`);
 } 
+
+module.exports = { producerWorker };
