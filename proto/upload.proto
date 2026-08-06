@@ -6,15 +6,50 @@ service UploadService {
     rpc UploadVideo(stream VideoChunk) returns (UploadResponse);
 }
 
+enum UploadStatus {
+    UPLOAD_STATUS_UNSPECFIED = 0;
+
+    ACCEPTED = 1;
+
+    QUEUE_FULL = 2;
+
+    DUPLICATE = 3;
+
+    INVALID_FILE = 4;
+
+    UPLOAD_ERROR = 5;
+}
+
+message UploadRequest {
+    string filename = 1;
+
+    int64 file_size = 2;
+
+    string file_hash = 3;
+}
+
+message UploadPermission {
+    bool allowed = 1;
+
+    UploadStatus status = 2;
+
+    string message = 3;
+}
+
 message VideoChunk {
-    bytes content = 1;
+    string upload_id = 1;
+
     string filename = 2;
-    int 64 total_size = 3;
-    string producer_id = 4;
+
+    uint32 chunk_number = 3;
+
+    bytes data = 4;
+
+    bool is_last = 5;
 }
 
 message UploadResponse {
-    bool accepted = 1;
+    UploadStatus status = 1;
+
     string message = 2;
-    string file_id = 3;
 }
