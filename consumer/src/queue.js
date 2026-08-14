@@ -2,6 +2,11 @@ class BoundedQueue {
     constructor(maxSize) {
         this.maxSize = maxSize;
         this.items = [];
+        this.activeUploads = new Map();
+    }
+
+    isFull() {
+        return (this.items.length >= this.maxSize);
     }
 
     enqueue(item) {
@@ -27,4 +32,6 @@ class BoundedQueue {
     }
 }
 
-module.exports = BoundedQueue;
+const queue = new BoundedQueue(Number(process.env.QUEUE_SIZE) || 10);
+
+module.exports = {BoundedQueue, queue};
