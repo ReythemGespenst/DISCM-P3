@@ -1,17 +1,17 @@
-const { startGrpcServer } = require('/src/grpcServer');
-const { startWorkers } = require('/src/queue');
-const { startWebServer } = require("/src/server");
+const { startGrpcServer } = require("./src/grpcServer");
+const { startWorkers } = require("./src/queue");
+const { startWebServer } = require("./src/server");
 
 async function main() {
-    const consumerCount = Number(process.env.CONSUMER_COUNT || 1);
+    const consumerCount = Number(process.env.CONSUMER_THREADS) || 1;
     console.log("Starting consumers...");
     console.log(`Consumer workers: ${consumerCount}`);
-
-    startWorkers(consumerCount);
 
     await startGrpcServer();
 
     await startWebServer();
+
+    startWorkers(consumerCount);
     
     console.log("Consumer is ready.");
 }

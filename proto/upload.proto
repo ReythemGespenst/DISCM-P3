@@ -10,15 +10,15 @@ service UploadService {
 enum UploadStatus {
     UPLOAD_STATUS_UNSPECIFIED = 0;
 
-    ACCEPTED = 1;
+    UPLOAD_STATUS_ACCEPTED = 1;
 
-    QUEUE_FULL = 2;
+    UPLOAD_STATUS_QUEUE_FULL = 2;
 
-    DUPLICATE = 3;
+    UPLOAD_STATUS_DUPLICATE = 3;
 
-    INVALID_FILE = 4;
+    UPLOAD_STATUS_INVALID_FILE = 4;
 
-    UPLOAD_ERROR = 5;
+    UPLOAD_STATUS_UPLOAD_ERROR = 5;
 }
 
 message UploadRequest {
@@ -27,6 +27,8 @@ message UploadRequest {
     int64 file_size = 2;
 
     string file_hash = 3;
+
+    string upload_id = 4;
 }
 
 message UploadPermission {

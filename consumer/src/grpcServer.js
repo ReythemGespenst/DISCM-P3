@@ -1,10 +1,12 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+
 const fs = require('fs');
 const path = require('path');
 const fsp = require('fs/promises');
 const crypto = require('crypto');
-const queue = require("./queue");
+
+const { queue } = require("./queue");
 
 const PROTO_PATH = path.join(__dirname, '../../proto/upload.proto');
 
@@ -15,23 +17,108 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     longs: String,
     enums: String,
     defaults: true,
-    oneofs: truncate
+    oneofs: true
 });
 
 const proto = grpc.loadPackageDefinition(packageDefinition);
 
 const uploadService = proto.uploadservice.UploadService;
 
+const uploadRegistry = new Map();
+
+const knownHashes = new Set();
+
 function checkUploadCapacity(call, callback){
-    if (queue.isFull()) {
-        callback(null, {allowed: false, status: "QUEUE_FULL", message: "Queue is full. Video Rejected"});
-        return;
+    try {
+        const request = call.request;
+        
+        const filename = request.filename;
+        const fileSize = Number(request.file_size);
+        const fileHash = request.fileHash;
+        const uploadId = request.uploadId || crypto.randomUUID();
+
+        if(!filename) {
+            callback(null, {
+                allowed: false,
+                status: "UPLOAD_STATUS_INVALID_FILE",
+                message: "Filename is required."
+            });
+
+            return;
+        }
+
+        if(!fileHash) {
+            callback(null, {
+                allowed: false,
+                status: "UPLOAD_STATUS_INVALID_FILE",
+                message: "File hash is required."
+            });
+
+            return;
+        }
+
+        if(!Number.isFinite(fileSize) || fileSize <= 0) {
+            callback(null, {
+                allowed: false,
+                status: "UPLOAD_STATUS_INVALID_FILE",
+                message: "Invalid file size."
+            });
+
+            return;
+        }
+
+        if(knownHashes.has(fileHash)) {
+            console.log(`[gRPC] Duplicate detected: ${filename}`);
+
+            callback(null, {
+                allowed: false,
+                status: "UPLOAD_STATUS_DUPLICATE",
+                message: "Video already exists."
+            });
+
+            return;
+        }
+
+        if(queue.isFull()) {
+            console.log(`[gRPC] Queue full. Rejecting ${filename}`);
+
+            callback(null, {
+                allowed: false,
+                status: "UPLOAD_STATUS_QUEUE_FULL",
+                message: "Queue is full. Video rejected."
+            });
+
+            return;
+        }
+
+        uploadRegistry.set(uploadId, {
+            filename,
+            fileSize,
+            fileHash,
+            createdAt: Date.now()
+        });
+
+        console.log(`[gRPC] Upload authorized: ${filename} (uploadId=${uploadId})`);
+
+        callback(null, {
+            allowed: true,
+            status: "UPLOAD_STATUS_ACCEPTED",
+            message: uploadId
+        });
+    } catch (error) {
+        console.error("[gRPC] Capacity check failed: ", error);
+
+        callback(null, {
+            allowed: false,
+            status: "UPLOAD_STATUS_UPLOAD_ERROR",
+            message: "Failed to check upload capacity"
+        });
     }
-    callback(null, {allowed: true, status: "ACCEPTED", message: "Upload accepted"});
 }
 
 function uploadVideo(call, callback){
-    let uploadId, filename, fileHash, fileSize, filePath, writeStream = null;
+    let uploadId, filename, fileHash, filePath, writeStream = null;
+    let fileSize = 0;
     let expectedChunk = 0;
     let receivedAnyChunk = false;
 
@@ -60,7 +147,6 @@ function uploadVideo(call, callback){
                 writeStream.write(chunk.data);
             }
 
-            if (chunk.is_last) {}
         } catch (error) {
             console.error("Error receiving chunk: ", error);
             call.destroy(error);
@@ -111,7 +197,7 @@ function uploadVideo(call, callback){
     });
 }
 
-function startGrpcServer(uploadQueue) {
+function startGrpcServer() {
     await fsp.mkdir(TEMP_DIR, {recursive: true});
 
     const server = new grpc.Server();

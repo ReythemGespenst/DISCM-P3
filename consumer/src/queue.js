@@ -64,6 +64,10 @@ async function consumerWorker(workerId) {
 }
 
 function startWorkers(count){
+    if(!Number.isInteger(count) || count < 1) {
+        throw new Error(`Invalid consumer worker count: ${count}`);
+    }
+    
     console.log(`Starting ${count} consumer workers...`);
     
     for(let i = 1; i <= count; i++) {

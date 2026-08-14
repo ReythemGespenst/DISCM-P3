@@ -1,7 +1,7 @@
 services:
   consumer:
     build:
-      context: ./consumer
+      context: .
       dockerfile: consumer/Dockerfile
     container_name: consumer
     ports:
@@ -17,14 +17,13 @@ services:
   
   producer:
     build:
-      context: ./producer
+      context: .
       dockerfile: producer/Dockerfile
     container_name: producer
     depends_on:
       - consumer
     volumes:
-      - "./producer/storage:/app/producer/videos1"
-      - "./producer/storage:/app/producer/videos2"
+      - "./producer/storage:/app/producer/storage"
     environment:
       - CONSUMER_HOST=consumer
       - CONSUMER_PORT=50051
