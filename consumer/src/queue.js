@@ -1,3 +1,5 @@
+const { processVideo } = require("./videoProcessor");
+
 class BoundedQueue {
     constructor(maxSize) {
         this.maxSize = maxSize;
@@ -34,4 +36,41 @@ class BoundedQueue {
 
 const queue = new BoundedQueue(Number(process.env.QUEUE_SIZE) || 10);
 
-module.exports = {BoundedQueue, queue};
+function sleep(ms) {
+    return new Promise(resolve=> {setTimeout(resolve, ms)});
+}
+
+async function consumerWorker(workerId) {
+    console.log(`[Consumer ${workerId}] ` + `Worker started`);
+
+    while (true) {
+        const item = queue.dequeue();
+
+        if(!item) {
+            await sleep(100);
+
+            continue;
+        }
+
+        console.log(`[Consumer ${workerId}] ` + `Processing ${item.filename}`);
+
+        try {
+            await processVideo(item);
+            console.log(`[Consumer ${workerId}] Finished ${item.filename}`);
+        } catch (error) {
+            console.error(`[Consumer ${workerId}] Failed to process ${item.filename}: `, error);
+        }
+    }
+}
+
+function startWorkers(count){
+    console.log(`Starting ${count} consumer workers...`);
+    
+    for(let i = 1; i <= count; i++) {
+        consumerWorker(i).catch(error => {
+            console.error(`[Consumer ${i}] Worker crashed: `, error);
+        });
+    }
+}
+
+module.exports = {BoundedQueue, queue, startWorkers};

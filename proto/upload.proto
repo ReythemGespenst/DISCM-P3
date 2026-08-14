@@ -4,7 +4,7 @@ package uploadservice;
 
 service UploadService {
     rpc UploadVideo(stream VideoChunk) returns (UploadResponse);
-    rpc CheckUploadCapacity(UploadRequest) returns (UploadRermission);
+    rpc CheckUploadCapacity(UploadRequest) returns (UploadPermission);
 }
 
 enum UploadStatus {
