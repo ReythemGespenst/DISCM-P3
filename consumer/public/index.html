@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <title>P3 DISCM Video Streaming App</title>
+        <link rel="stylesheet" href="/style.css">
+    </head>
+
+    <body>
+        <header>
+            <h1>P3 DISCM Video Streaming App</h1>
+            <p>Uploaded Videos</p>
+        </header>
+        <main>
+            <div
+                id="video-grid"
+                class="video-grid"
+            ></div>
+        </main>
+        <div id="video-modal" class="video-modal">
+            <div class="video-modal-content">
+                <button id="close-modal" class="close-button">X</button>
+                <video id="main-video" controls></video>
+                <h2 id="modal-title"></h2>
+            </div>
+       </div>
+
+        <script src="/app.js"></script>
+    </body>
+</html>
