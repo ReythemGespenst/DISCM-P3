@@ -1,6 +1,6 @@
 const fs = require("fs/promises");
 const path = require("path");
-const {spawn} = require("child_process");
+const { spawn } = require("child_process");
 
 const UPLOAD_DIR = path.join(__dirname, "../uploads");
 const PREVIEW_DIR = path.join(__dirname, "../previews");
@@ -14,31 +14,29 @@ function isVideoFile(filename) {
 }
 
 function runFFmpeg(args) {
-    return new Promise(
-        (resolve, reject) => {
-            console.log(`[FFmpeg] Starting: ffmpeg ${args.join(" ")}`);
+    return new Promise((resolve, reject) => {
+        console.log(`[FFmpeg] Starting: ffmpeg ${args.join(" ")}`);
 
-            const ffmpeg = spawn("ffmpeg", args);
+        const ffmpeg = spawn("ffmpeg", args);
 
-            let stderr = "";
+        let stderr = "";
 
-            ffmpeg.stderr.on("data", data => {
-                stderr += data.toString();
-            });
+        ffmpeg.stderr.on("data", data => {
+            stderr += data.toString();
+        });
 
-            ffmpeg.on("error", error => {
-                reject(error);
-            });
+        ffmpeg.on("error", error => {
+            reject(error);
+        });
 
-            ffmpeg.on("close", code => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject (new Error(`FFmpeg exited with code ${code}\n` + stderr));
-                }
-            });
-        }
-    );
+        ffmpeg.on("close", code => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject (new Error(`FFmpeg exited with code ${code}\n` + stderr));
+            }
+        });
+    });
 }
 
 async function compressVideo(inputPath, outputPath) {
@@ -58,7 +56,9 @@ async function processVideo(item){
 
     console.log(`[Video Processor] Processing ${filename}`);
 
-    if(!isVideoFile(filename)){ throw new Error(`Unsupported video format ${filename}`);}
+    if(!isVideoFile(filename)){
+        throw new Error(`Unsupported video format ${filename}`);
+    }
 
     const safeFilename = path.basename(filename);
     const parsed = path.parse(safeFilename);
@@ -69,9 +69,15 @@ async function processVideo(item){
     const previewFilename = `${parsed.name}_preview.mp4`;  
     const previewPath = path.join(PREVIEW_DIR, previewFilename);
 
-    await compressVideo(filePath, finalPath);
+    try {
+        await compressVideo(filePath, finalPath);
+        await generatePreview(finalPath, previewPath);
+    } catch (error) {
+        await fs.unlink(finalPath).catch(() => {});
+        await fs.unlink(previewPath).catch(() => {});
 
-    await generatePreview(finalPath, previewPath);
+        throw error;
+    }
 
     const stats = await fs.stat(finalPath);
 

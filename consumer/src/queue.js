@@ -4,7 +4,6 @@ class BoundedQueue {
     constructor(maxSize) {
         this.maxSize = maxSize;
         this.items = [];
-        this.activeUploads = new Map();
     }
 
     isFull() {
@@ -48,11 +47,10 @@ async function consumerWorker(workerId) {
 
         if(!item) {
             await sleep(100);
-
             continue;
         }
 
-        console.log(`[Consumer ${workerId}] ` + `Processing ${item.filename}`);
+        console.log(`[Consumer ${workerId}] Processing ${item.filename} (queue size: ${queue.size})`);
 
         try {
             await processVideo(item);
@@ -67,7 +65,7 @@ function startWorkers(count){
     if(!Number.isInteger(count) || count < 1) {
         throw new Error(`Invalid consumer worker count: ${count}`);
     }
-    
+
     console.log(`Starting ${count} consumer workers...`);
     
     for(let i = 1; i <= count; i++) {

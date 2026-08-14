@@ -27,8 +27,6 @@ message UploadRequest {
     int64 file_size = 2;
 
     string file_hash = 3;
-
-    string upload_id = 4;
 }
 
 message UploadPermission {

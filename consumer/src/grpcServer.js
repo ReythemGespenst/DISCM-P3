@@ -28,14 +28,16 @@ const uploadRegistry = new Map();
 
 const knownHashes = new Set();
 
+const pendingHashes = new Set();
+
 function checkUploadCapacity(call, callback){
     try {
         const request = call.request;
         
         const filename = request.filename;
         const fileSize = Number(request.file_size);
-        const fileHash = request.fileHash;
-        const uploadId = request.uploadId || crypto.randomUUID();
+        const fileHash = request.file_hash;
+        const uploadId = crypto.randomUUID();
 
         if(!filename) {
             callback(null, {
@@ -67,7 +69,7 @@ function checkUploadCapacity(call, callback){
             return;
         }
 
-        if(knownHashes.has(fileHash)) {
+        if(knownHashes.has(fileHash) || pendingHashes.has(fileHash)) {
             console.log(`[gRPC] Duplicate detected: ${filename}`);
 
             callback(null, {
@@ -91,6 +93,8 @@ function checkUploadCapacity(call, callback){
             return;
         }
 
+        pendingHashes.add(fileHash);
+
         uploadRegistry.set(uploadId, {
             filename,
             fileSize,
@@ -103,22 +107,26 @@ function checkUploadCapacity(call, callback){
         callback(null, {
             allowed: true,
             status: "UPLOAD_STATUS_ACCEPTED",
-            message: uploadId
+            message: "Upload accepted.",
+            upload_id: uploadId
         });
+
     } catch (error) {
         console.error("[gRPC] Capacity check failed: ", error);
 
         callback(null, {
             allowed: false,
             status: "UPLOAD_STATUS_UPLOAD_ERROR",
-            message: "Failed to check upload capacity"
+            message: "Failed to check upload capacity."
         });
     }
 }
 
 function uploadVideo(call, callback){
     let uploadId, filename, fileHash, filePath, writeStream = null;
-    let expectedFileSize, fileSize, expectedChunk = 0;
+    let expectedFileSize = 0;
+    let fileSize = 0;
+    let expectedChunk = 0;
 
     let receivedAnyChunk = false;
     let receivedLastChunk = false;
@@ -200,7 +208,7 @@ function uploadVideo(call, callback){
 
     call.on("end", async() => {
         try {
-            if( uploadFailed || !receivedAnyChunk || !writeStream || !filePath ) {
+            if(!receivedAnyChunk || !writeStream || !filePath ) {
                 callback(null, {status: "UPLOAD_STATUS_INVALID_FILE", message: "No video data received."});
                 return;
             }
@@ -223,12 +231,13 @@ function uploadVideo(call, callback){
                 });
             });
 
-            if (knownHashed.has(fileHash)) {
+            if (knownHashes.has(fileHash)) {
                 console.log(`[gRPC] Duplicate detected after upload: ${filename}`);
 
                 await fsp.unlink(filePath).catch(() => {});
 
                 uploadRegistry.delete(uploadId);
+                pendingHashes.delete(fileHash);
 
                 callback(null, {
                     status: "UPLOAD_STATUS_DUPLICATE",
@@ -244,10 +253,12 @@ function uploadVideo(call, callback){
                 console.log(`[gRPC] Queue became full while uploading ${filename}`);
                 await fsp.unlink(filePath).catch(() => {});
                 uploadRegistry.delete(uploadId);
+                pendingHashes.delete(fileHash);
                 callback(null, {status: "UPLOAD_STATUS_QUEUE_FULL", message: "Queue is full. Video dropped."});
                 return;
             }
 
+            pendingHashes.delete(fileHash);
             knownHashes.add(fileHash);
 
             uploadRegistry.delete(uploadId);
@@ -268,6 +279,10 @@ function uploadVideo(call, callback){
                 uploadRegistry.delete(uploadId);
             }
 
+            if (fileHash) {
+                pendingHashes.delete(fileHash);
+            }
+
             callback(null, {status: "UPLOAD_STATUS_UPLOAD_ERROR", message: "Failed to process upload."});
         }
     });
@@ -286,6 +301,10 @@ function uploadVideo(call, callback){
         if (uploadId) {
             uploadRegistry.delete(uploadId);
         }
+
+        if (fileHash) {
+            pendingHashes.delete(fileHash);
+        }
     });
 }
 
@@ -300,7 +319,7 @@ async function startGrpcServer() {
         server.bindAsync(
             "0.0.0.0:50051",
             grpc.ServerCredentials.createInsecure(),
-            
+
             (error, port) => {
                 if (error) {
                     reject(error);
