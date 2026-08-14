@@ -7,8 +7,7 @@ const { calculateFileHash } = require("./hash");
 
 const CHUNK_SIZE = 256 * 1024; // 256 KB
 
-async function uploadVideo(filePath, uploadId) {
-    const uploadId = crypto.randomUUID();
+async function uploadVideo(filePath, filename, uploadId) {
 
     return new Promise(async (resolve, reject) => {
         const call = client.UploadVideo((error, response) => {
@@ -22,7 +21,7 @@ async function uploadVideo(filePath, uploadId) {
 
         const fileStream = fs.createReadStream(filePath, {highWaterMark: CHUNK_SIZE});
 
-        let chunkIndex = 0;s
+        let chunkIndex = 0;
 
         fileStream.on("data", (chunk) => {
             call.write({
@@ -85,7 +84,9 @@ async function processVideo(producerId, filePath) {
         return;
     }
 
-    const response = await uploadVideo(filePath, filename);
+    const uploadId = crypto.randomUUID();
+
+    const response = await uploadVideo(filePath, filename, uploadId);
 
     console.log(`Producer ${producerId}: Upload response for ${filename}: ${response.message}`);
 }
@@ -100,6 +101,12 @@ async function producerWorker(producerId, folderPath) {
 
         return [".mp4", ".avi", ".mov", ".mkv"].includes(extension);
     });
+
+    console.log(
+        `Producer ${producerId}: ` +
+        `Found ${videoFiles.length} ` +
+        `video files.`
+    );
 
     for (const file of videoFiles) {
         const filePath = path.join(folderPath, file);
