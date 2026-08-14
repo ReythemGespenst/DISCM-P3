@@ -37,6 +37,8 @@ message UploadPermission {
     UploadStatus status = 2;
 
     string message = 3;
+
+    string upload_id = 4;
 }
 
 message VideoChunk {

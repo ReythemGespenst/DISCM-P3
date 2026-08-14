@@ -118,27 +118,62 @@ function checkUploadCapacity(call, callback){
 
 function uploadVideo(call, callback){
     let uploadId, filename, fileHash, filePath, writeStream = null;
-    let fileSize = 0;
-    let expectedChunk = 0;
+    let expectedFileSize, fileSize, expectedChunk = 0;
+
     let receivedAnyChunk = false;
+    let receivedLastChunk = false;
+
+    let uploadFailed = false;
 
     function createTempPath(id) {
         return path.join(TEMP_DIR, `${id}.tmp`);
     }
 
     call.on("data", chunk => {
+        if(uploadFailed) {
+            return;
+        }
+
         try {
             if (!uploadId) {
                 uploadId = chunk.uploadId || crypto.randomUUID();
-                filename = path.basename(chunk.filename);
+
+                filename = path.basename(chunk.filename || "");
+
+                if(!filename){
+                    throw new Error("Filename is required.");
+                }
+
+                const registration = uploadRegistry.get(uploadId);
+
+                if(!registration) {
+                    throw new Error("Upload was not authorized.");
+                }
+
+                fileHash = registration.fileHash;
+                expectedFileSize = registration.fileSize;
+
+                if(filename !== registration.filename){
+                    throw new Error("Filename does not match upload authorization.");
+                }
+
                 filePath = createTempPath(uploadId);
                 writeStream = fs.createWriteStream(filePath);
-                fileHash = chunk.fileHash || null;
+                
             }
+
+            if(chunk.uploadId !== uploadId) {
+                throw new Error("Upload ID changed during upload.");
+            }
+
+            if (path.basename(chunk.filename) !== filename) {
+                throw new Error("Filename changed during upload.");
+            }
+            
             if(chunk.chunk_number !== expectedChunk) {
-                call.destroy(new Error(`Unexpected chunk number. Expected ${expectedChunk}, received ${chunk.chunk_number}`));
-                return;
+                throw new Error(`Unexpected chunk number. Expected ${expectedChunk}, received ${chunk.chunk_number}`);
             }
+
             expectedChunk++;
             receivedAnyChunk = true;
 
@@ -147,17 +182,35 @@ function uploadVideo(call, callback){
                 writeStream.write(chunk.data);
             }
 
+            if (chunk.is_last) {
+                receivedLastChunk = true;
+            }
+
         } catch (error) {
-            console.error("Error receiving chunk: ", error);
+            uploadFailed = true;
+            console.error("[gRPC] Error receiving chunk: ", error);
+
+            if (writeStream) {
+                writeStream.destroy();
+            }
+
             call.destroy(error);
         }
     });
 
     call.on("end", async() => {
         try {
-            if( !receivedAnyChunk || !writeStream || !filePath ) {
-                callback(null, {status: "INVALID_FILE", message: "No video data received."});
+            if( uploadFailed || !receivedAnyChunk || !writeStream || !filePath ) {
+                callback(null, {status: "UPLOAD_STATUS_INVALID_FILE", message: "No video data received."});
                 return;
+            }
+
+            if(!receivedLastChunk) {
+                throw new Error("Upload ended without a final chunk.");
+            }
+
+            if(expectedFileSize > 0 && fileSize !== expectedFileSize) {
+                throw new Error(`File size mismatch. Expected ${expectedFileSize}, received ${fileSize}`);
             }
 
             await new Promise((resolve, reject) => {
@@ -170,34 +223,73 @@ function uploadVideo(call, callback){
                 });
             });
 
-            const accepted = queue.enqueue({uploadId, filename, filePath, fileHash, fileSize});
+            if (knownHashed.has(fileHash)) {
+                console.log(`[gRPC] Duplicate detected after upload: ${filename}`);
 
-            if(!accepted){
                 await fsp.unlink(filePath).catch(() => {});
-                callback(null, {status: "QUEUE_FULL", message: "Queue is full. Video dropped."});
+
+                uploadRegistry.delete(uploadId);
+
+                callback(null, {
+                    status: "UPLOAD_STATUS_DUPLICATE",
+                    message: "Video already exists."
+                });
+
                 return;
             }
 
-            console.log(`[gRPC] Upload received: ${filename}`);
+            const accepted = queue.enqueue({uploadId, filename, filePath, fileHash, fileSize});
 
-            callback(null, {status: "ACCEPTED", message: "Video accepted for processing."});
+            if(!accepted){
+                console.log(`[gRPC] Queue became full while uploading ${filename}`);
+                await fsp.unlink(filePath).catch(() => {});
+                uploadRegistry.delete(uploadId);
+                callback(null, {status: "UPLOAD_STATUS_QUEUE_FULL", message: "Queue is full. Video dropped."});
+                return;
+            }
+
+            knownHashes.add(fileHash);
+
+            uploadRegistry.delete(uploadId);
+
+            console.log(`[gRPC] Upload received: ${filename}`);
+            console.log(`[gRPC] Queue size: ${queue.size}`);
+
+            callback(null, {status: "UPLOAD_STATUS_ACCEPTED", message: "Video accepted for processing."});
 
         } catch (error) {
             console.error("[gRPC] Upload failed: ", error);
+
             if (filePath) {
                 await fsp.unlink(filePath).catch(() => {});
             }
-            callback(null, {status: "UPLOAD_ERROR", message: "Failed to process upload."});
+
+            if (uploadId) {
+                uploadRegistry.delete(uploadId);
+            }
+
+            callback(null, {status: "UPLOAD_STATUS_UPLOAD_ERROR", message: "Failed to process upload."});
         }
     });
 
     call.on("error", error => {
+        uploadFailed = true;
         console.error("[gRPC] Stream error: ", error);
-        if (writeStream) { writeStream.destroy(); }
+        if (writeStream) { 
+            writeStream.destroy(); 
+        }
+
+        if (filePath) {
+            fsp.unlink(filePath).catch(() => {});
+        }
+
+        if (uploadId) {
+            uploadRegistry.delete(uploadId);
+        }
     });
 }
 
-function startGrpcServer() {
+async function startGrpcServer() {
     await fsp.mkdir(TEMP_DIR, {recursive: true});
 
     const server = new grpc.Server();
@@ -208,6 +300,7 @@ function startGrpcServer() {
         server.bindAsync(
             "0.0.0.0:50051",
             grpc.ServerCredentials.createInsecure(),
+            
             (error, port) => {
                 if (error) {
                     reject(error);
