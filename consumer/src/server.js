@@ -4,11 +4,12 @@ const fs = require("fs/promises");
 
 const app = express();
 
-const PORT = process.env.HTTP_PORT || 3000;
+const PORT = Number(process.env.HTTP_PORT || 3000);
 
 const UPLOAD_DIR = path.join(__dirname, "../uploads");
-
 const PREVIEW_DIR = path.join(__dirname, "../previews");
+
+const VIDEO_EXTENSIONS = [".mp4", ".avi", ".mov", ".mkv", ".webm"];
 
 app.use(express.json());
 
@@ -19,16 +20,23 @@ app.use("/previews", express.static(PREVIEW_DIR));
 app.get("/api/videos", async (req, res) => {
     try {
         const files = await fs.readdir(UPLOAD_DIR, { withFileTypes: true });
-        const videos = files.filter(file => file.isFile())
-        .filter(file => {
-            const extension = path.extname(file.name).toLowerCase();
-            return [".mp4", ".avi", ".mov", ".mkv", ".webm"].includes(extension);
-        })
-        .map(file => ({
-            filename: file.name,
-            videoUrl: `/videos/${encodeURIComponent(file.name)}`,
-            previewUrl: `/previews/${encodeURIComponent(file.name)}`
-        }));
+        const videos = files
+            .filter(file => file.isFile())
+            .filter(file => {
+                const extension = path.extname(file.name).toLowerCase();
+                return VIDEO_EXTENSIONS.includes(extension);
+            })
+            .map(file => {
+                const parsed = path.parse(file.name);
+
+                const previewFilename = `${parsed.name}_preview.mp4`;
+
+                return {
+                    filename: file.name,
+                    videoUrl: `/videos/${encodeURIComponent(file.name)}`,
+                    previewUrl: `/previews/${encodeURIComponent(previewFilename)}`
+                };
+            });
 
         res.json(videos);
     } catch (error) {
@@ -46,10 +54,12 @@ async function startWebServer() {
     await fs.mkdir(PREVIEW_DIR, { recursive: true });
 
     return new Promise((resolve, reject) => {
-        app.listen(PORT, "0.0.0.0", () => {
+        const server = app.listen(PORT, "0.0.0.0", () => {
             console.log(`Web server running on PORT ${PORT}`);
-            resolve();
+            resolve(server);
         });
+
+        server.on("error", reject);
     });
 }
 

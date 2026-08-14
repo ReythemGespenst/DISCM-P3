@@ -24,8 +24,8 @@ function checkUploadCapacity(request) {
                 return;
             }
             resolve(response);
-        })
-    })
+        });
+    });
 };
 
 module.exports = {

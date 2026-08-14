@@ -2,8 +2,8 @@ const fs = require("fs/promises");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const UPLOAD_DIR = path.join(__dirname, "../uploads");
-const PREVIEW_DIR = path.join(__dirname, "../previews");
+const UPLOAD_DIR = path.join(__dirname, "../storage/uploads");
+const PREVIEW_DIR = path.join(__dirname, "../storage/previews");
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".mov", ".avi", ".webm"];
 
@@ -40,7 +40,7 @@ function runFFmpeg(args) {
 }
 
 async function compressVideo(inputPath, outputPath) {
-    console.log(`[Video Processor] Compressing` + `${inputPath}`);
+    console.log(`[Video Processor] Compressing ${inputPath}`);
     await runFFmpeg(["-y", "-i", inputPath, "-c:v", "libx264", "-crf", "28", "-movflags", "+faststart", "-c:a", "aac", "-b:a", "128k", outputPath]);
     console.log(`[Video Processor] Compression complete: ${outputPath}`);
 }
@@ -63,10 +63,10 @@ async function processVideo(item){
     const safeFilename = path.basename(filename);
     const parsed = path.parse(safeFilename);
 
-    const finalFilename = `${parsed.name}.mp4`;
+    const finalFilename = `${parsed.name}_${uploadId}.mp4`;
     const finalPath = path.join(UPLOAD_DIR, finalFilename);
 
-    const previewFilename = `${parsed.name}_preview.mp4`;  
+    const previewFilename = `${parsed.name}_${uploadId}_preview.mp4`;  
     const previewPath = path.join(PREVIEW_DIR, previewFilename);
 
     try {

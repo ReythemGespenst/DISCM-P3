@@ -10,7 +10,7 @@ function calculateFileHash(filePath) {
         stream.on("data", chunk => hash.update(chunk));
         stream.on("end", () => { resolve(hash.digest("hex")) });
         stream.on("error", error => { reject(error)});
-    })
+    });
 }
 
 module.exports = {

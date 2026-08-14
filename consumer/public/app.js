@@ -27,15 +27,21 @@ function renderVideos(videos) {
     for (const video of videos) {
         const card = document.createElement("div");
         card.className = "video-card";
+
+        const preview = document.createElement("video");
+
         preview.className = "video-preview";
         preview.src = video.previewUrl;
+
         preview.muted = true;
         preview.preload = "metadata";
+        preview.playsInline = true;
 
         card.addEventListener("mouseenter", () => {
             preview.currentTime = 0;
             preview.play().catch(() => {});
         });
+
         card.addEventListener("mouseleave", () => {
             preview.pause();
             preview.currentTime = 0;
@@ -57,8 +63,12 @@ function renderVideos(videos) {
 
 function openVideo(video) {
     modalTitle.textContent = video.filename;
+
     mainVideo.src = video.videoUrl;
-    modal.className.remove("hidden");
+    mainVideo.playsInline = true;
+
+    modal.classList.remove("hidden");
+
     mainVideo.play().catch(() => {});
 }
 
@@ -74,4 +84,4 @@ modal.addEventListener("click", event => {
     if(event.target === modal) closeVideo();
 });
 
-loadVideos();
+setInterval(loadVideos, 5000);

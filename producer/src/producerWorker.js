@@ -34,60 +34,60 @@ async function writeChunk(call, chunk){
 }
 
 async function uploadVideo(filePath, filename, uploadId) {
-    return new Promise(async (resolve, reject) => {
-        let finished = false;
+    const call = client.UploadVideo();
 
-        const call = client.UploadVideo((error, response) => {
-            if(finished) {
-                return;
-            }
-
-            finished = true;
-
-            if(error) {
-                reject(error);
-                return;
-            }
-
+    const responsePromise = new Promise((resolve, reject) => {
+        call.once("data", response => {
             resolve(response);
         });
 
-        const fileStream = fs.createReadStream(filePath, {highWaterMark: CHUNK_SIZE});
+        call.once("error", error => {
+            reject(error);
+        });
+    });
 
-        try {
-            let chunkIndex = 0;
+    const fileStream = fs.createReadStream(filePath, {
+        highWaterMark: CHUNK_SIZE
+    });
 
-            for await (const chunk of fileStream) {
-                await writeChunk(call, {
-                    upload_id: uploadId,
-                    filename: filename,
-                    chunk_number: chunkIndex,
-                    data: chunk,
-                    is_last: false,
-                });
+    try {
+        let chunkIndex = 0;
 
-                chunkIndex++;
-            }
-
+        for await (const chunk of fileStream) {
             await writeChunk(call, {
                 upload_id: uploadId,
-                filename: filename,
+                filename,
                 chunk_number: chunkIndex,
-                data: Buffer.alloc(0),
-                is_last: true
+                data: chunk,
+                is_last: false
             });
 
-            call.end();
-        } catch (error) {
-            fileStream.destroy();
-            call.destroy(error);
-            if(!finished) {
-                finished = true;
-                reject(error);
-            }
+            chunkIndex++;
         }
-    });
+
+        await writeChunk(call, {
+            upload_id: uploadId,
+            filename,
+            chunk_number: chunkIndex,
+            data: Buffer.alloc(0),
+            is_last: true
+        });
+
+        call.end();
+
+        return await responsePromise;
+
+    } catch (error) {
+        fileStream.destroy();
+
+        if (!call.destroyed) {
+            call.destroy(error);
+        }
+
+        throw error;
+    }
 }
+
 
 async function processVideo(producerId, filePath) {
     const filename = path.basename(filePath);

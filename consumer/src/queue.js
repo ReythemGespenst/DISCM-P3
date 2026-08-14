@@ -2,6 +2,9 @@ const { processVideo } = require("./videoProcessor");
 
 class BoundedQueue {
     constructor(maxSize) {
+        if(!Number.isInteger(maxSize) || maxSize < 1) {
+            throw new Error(`Invalid queue size: ${maxSize}`);
+        }
         this.maxSize = maxSize;
         this.items = [];
     }

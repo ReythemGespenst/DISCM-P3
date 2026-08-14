@@ -10,7 +10,7 @@ const { queue } = require("./queue");
 
 const PROTO_PATH = path.join(__dirname, '../../proto/upload.proto');
 
-const TEMP_DIR = path.join(__dirname, "../temp");
+const TEMP_DIR = path.join(__dirname, "../storage/temp");
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
@@ -144,7 +144,11 @@ function uploadVideo(call, callback){
 
         try {
             if (!uploadId) {
-                uploadId = chunk.uploadId || crypto.randomUUID();
+                uploadId = chunk.upload_id;
+
+                if(!uploadId) {
+                    throw new Error("Upload ID is required");
+                }
 
                 filename = path.basename(chunk.filename || "");
 
@@ -170,7 +174,7 @@ function uploadVideo(call, callback){
                 
             }
 
-            if(chunk.uploadId !== uploadId) {
+            if(chunk.upload_id !== uploadId) {
                 throw new Error("Upload ID changed during upload.");
             }
 
@@ -184,6 +188,10 @@ function uploadVideo(call, callback){
 
             expectedChunk++;
             receivedAnyChunk = true;
+
+            if (receivedLastChunk) {
+                throw new Error("Received chunk after final chunk.");
+            }
 
             if (chunk.data && chunk.data.length > 0) {
                 fileSize += chunk.data.length;

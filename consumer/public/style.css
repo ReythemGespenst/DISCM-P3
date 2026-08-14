@@ -4,11 +4,8 @@
 
 body {
     margin: 0;
-
     font-family: Arial, sans-serif;
-
     background: #f4f4f4;
-
     color: #222;
 }
 
@@ -42,7 +39,7 @@ main {
     border-radius: 10px;
     overflow: hidden;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     transition: transform 0.2s;
 }
 
@@ -67,7 +64,7 @@ main {
     white-space: nowrap;
 }
 
-.modal {
+.video-modal {
     position: fixed;
     inset: 0;
     display: flex;
@@ -77,11 +74,11 @@ main {
     z-index: 1000;
 }
 
-.modal hidden {
+.hidden {
     display: none;
 }
 
-.modal-content {
+.video-modal-content {
     position: relative;
     width: 90%;
     max-width: 1000px;
@@ -90,12 +87,13 @@ main {
     border-radius: 10px;
 }
 
-.modal-content video {
+.video-modal-content video {
+    display: block;
     width: 100%;
     max-height: 75vh;
 }
 
-.modal-content h2 {
+.video-modal-content h2 {
     color: white;
 }
 
