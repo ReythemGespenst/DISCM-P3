@@ -79,7 +79,7 @@ async function processVideo(producerId, filePath) {
 
     const permission = await checkUploadCapacity({filename, file_size: stats.size, file_hash: fileHash });
 
-    if((!permission || !permission.accepted)) {
+    if((!permission || !permission.allowed)) {
         console.log(`Producer ${producerId}: Upload rejected for ${filename}. Reason: ${permission ? permission.message : "No response from server"}`);
 
         return;

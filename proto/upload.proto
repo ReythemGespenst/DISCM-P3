@@ -1,13 +1,14 @@
-syntax = "proto3"
+syntax = "proto3";
 
 package uploadservice;
 
 service UploadService {
     rpc UploadVideo(stream VideoChunk) returns (UploadResponse);
+    rpc checkUploadCapacity(UploadRequest) returns (UploadRermission);
 }
 
 enum UploadStatus {
-    UPLOAD_STATUS_UNSPECFIED = 0;
+    UPLOAD_STATUS_UNSPECIFIED = 0;
 
     ACCEPTED = 1;
 

@@ -1,12 +1,19 @@
 const grpc = require('@grpc/grpc-js');
 
 const protoLoader = require('@grpc/proto-loader');
+const { truncate } = require('fs');
 
 const path = require('path');
 
-const PROTO_PATH = path.join(__dirname, 'proto', '../../upload.proto');
+const PROTO_PATH = path.join(__dirname, '../../proto/upload.proto');
 
-const packageDefinition = protoLoader.loadSync(PROTO_PATH);
+const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+    keepCase: true,
+    longs: String,
+    enums: String,
+    defaults: true,
+    oneofs: truncate
+});
 
 const proto = grpc.loadPackageDefinition(packageDefinition);
 
