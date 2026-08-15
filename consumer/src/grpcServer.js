@@ -170,7 +170,16 @@ function uploadVideo(call, callback){
                 }
 
                 filePath = createTempPath(uploadId);
+                fs.mkdirSync(TEMP_DIR, { recursive: true });
                 writeStream = fs.createWriteStream(filePath);
+
+                writeStream.on("error", (error) => {
+                    uploadFailed = true;
+                    console.error(`[gRPC] Write stream error for ${filename}:`, error);
+                    if (!call.destroyed) {
+                        call.destroy(error);
+                    }
+                });
 
             }
 
