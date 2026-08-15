@@ -7,7 +7,7 @@ async function main() {
 
     console.log(`Starting ${producerCount} producer workers...`);
 
-    const Workers = [];
+    const workers = [];
 
     for (let i = 0; i < producerCount; i++) {
         const folderPath = path.join(__dirname, 'videos', `producer${i + 1}`);

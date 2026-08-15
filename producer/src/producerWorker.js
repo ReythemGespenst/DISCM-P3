@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const grpc = require("@grpc/grpc-js");
 
 const { client, checkUploadCapacity } = require("./grpcClient");
 const { calculateFileHash } = require("./hash");
@@ -34,58 +35,84 @@ async function writeChunk(call, chunk){
 }
 
 async function uploadVideo(filePath, filename, uploadId) {
-    const call = client.UploadVideo();
+    return new Promise((resolve, reject) => {
+        let finished = false;
 
-    const responsePromise = new Promise((resolve, reject) => {
-        call.once("data", response => {
-            resolve(response);
+        const metadata = new grpc.Metadata();
+
+        const call = client.UploadVideo(
+            metadata,
+            {},
+            (error, response) => {
+                if (finished) {
+                    return;
+                }
+
+                finished = true;
+
+                if (error) {
+                    reject(error);
+                    return;
+                }
+
+                resolve(response);
+            }
+        );
+
+        const fileStream = fs.createReadStream(filePath, {
+            highWaterMark: CHUNK_SIZE
         });
 
-        call.once("error", error => {
+        const fail = (error) => {
+            if (finished) {
+                return;
+            }
+
+            finished = true;
+
+            fileStream.destroy();
+
+            if (!call.destroyed) {
+                call.destroy(error);
+            }
+
             reject(error);
-        });
+        };
+
+        call.on("error", fail);
+        fileStream.on("error", fail);
+
+        (async () => {
+            try {
+                let chunkIndex = 0;
+
+                for await (const chunk of fileStream) {
+                    await writeChunk(call, {
+                        upload_id: uploadId,
+                        filename: filename,
+                        chunk_number: chunkIndex,
+                        data: chunk,
+                        is_last: false
+                    });
+
+                    chunkIndex++;
+                }
+
+                await writeChunk(call, {
+                    upload_id: uploadId,
+                    filename: filename,
+                    chunk_number: chunkIndex,
+                    data: Buffer.alloc(0),
+                    is_last: true
+                });
+
+                call.end();
+
+            } catch (error) {
+                fail(error);
+            }
+        })();
     });
-
-    const fileStream = fs.createReadStream(filePath, {
-        highWaterMark: CHUNK_SIZE
-    });
-
-    try {
-        let chunkIndex = 0;
-
-        for await (const chunk of fileStream) {
-            await writeChunk(call, {
-                upload_id: uploadId,
-                filename,
-                chunk_number: chunkIndex,
-                data: chunk,
-                is_last: false
-            });
-
-            chunkIndex++;
-        }
-
-        await writeChunk(call, {
-            upload_id: uploadId,
-            filename,
-            chunk_number: chunkIndex,
-            data: Buffer.alloc(0),
-            is_last: true
-        });
-
-        call.end();
-
-        return await responsePromise;
-
-    } catch (error) {
-        fileStream.destroy();
-
-        if (!call.destroyed) {
-            call.destroy(error);
-        }
-
-        throw error;
-    }
 }
 
 

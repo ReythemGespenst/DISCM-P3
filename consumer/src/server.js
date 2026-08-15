@@ -6,12 +6,16 @@ const app = express();
 
 const PORT = Number(process.env.HTTP_PORT || 3000);
 
-const UPLOAD_DIR = path.join(__dirname, "../uploads");
-const PREVIEW_DIR = path.join(__dirname, "../previews");
+const STORAGE_DIR = path.join(__dirname, "../storage");
+
+const UPLOAD_DIR = path.join(STORAGE_DIR, "uploads");
+const PREVIEW_DIR = path.join(STORAGE_DIR, "previews");
 
 const VIDEO_EXTENSIONS = [".mp4", ".avi", ".mov", ".mkv", ".webm"];
 
 app.use(express.json());
+
+app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.use("/videos", express.static(UPLOAD_DIR));
 
