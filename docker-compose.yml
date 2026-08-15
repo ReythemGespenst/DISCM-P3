@@ -1,4 +1,6 @@
 services:
+  ### THE USER INPUTS HERE ARE THE FF:
+  #### CONSUMER_THREADS, QUEUE_SIZE, AND PRODUCER_THREADS
   consumer:
     build:
       context: .
