@@ -84,4 +84,5 @@ modal.addEventListener("click", event => {
     if(event.target === modal) closeVideo();
 });
 
-setInterval(loadVideos, 5000);
+loadVideos;
+setInterval(loadVideos, 60000);

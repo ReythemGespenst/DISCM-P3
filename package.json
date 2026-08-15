@@ -6,7 +6,7 @@
   "scripts": {
     "producer": "node producer/app.js",
     "consumer": "node consumer/app.js",
-    "clean": "rm -rf consumer/storage/uploads/* consumer/storage/previews/* consumer/storage/temp/*"
+    "clean": "rimraf consumer/storage/uploads consumer/storage/previews consumer/storage/temp"
   },
   "repository": {
     "type": "git",
@@ -24,5 +24,8 @@
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "rimraf": "^6.1.3"
   }
 }

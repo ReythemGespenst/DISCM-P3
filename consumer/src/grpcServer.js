@@ -6,7 +6,7 @@ const path = require('path');
 const fsp = require('fs/promises');
 const crypto = require('crypto');
 
-const { queue } = require("./queue");
+const { getQueue } = require("./queue");
 
 const PROTO_PATH = path.join(__dirname, '../../proto/upload.proto');
 
@@ -33,7 +33,7 @@ const pendingHashes = new Set();
 function checkUploadCapacity(call, callback){
     try {
         const request = call.request;
-        
+
         const filename = request.filename;
         const fileSize = Number(request.file_size);
         const fileHash = request.file_hash;
@@ -81,7 +81,7 @@ function checkUploadCapacity(call, callback){
             return;
         }
 
-        if(queue.isFull()) {
+        if(getQueue().isFull()) {
             console.log(`[gRPC] Queue full. Rejecting ${filename}`);
 
             callback(null, {
@@ -171,7 +171,7 @@ function uploadVideo(call, callback){
 
                 filePath = createTempPath(uploadId);
                 writeStream = fs.createWriteStream(filePath);
-                
+
             }
 
             if(chunk.upload_id !== uploadId) {
@@ -181,7 +181,7 @@ function uploadVideo(call, callback){
             if (path.basename(chunk.filename) !== filename) {
                 throw new Error("Filename changed during upload.");
             }
-            
+
             if(chunk.chunk_number !== expectedChunk) {
                 throw new Error(`Unexpected chunk number. Expected ${expectedChunk}, received ${chunk.chunk_number}`);
             }
@@ -255,7 +255,7 @@ function uploadVideo(call, callback){
                 return;
             }
 
-            const accepted = queue.enqueue({uploadId, filename, filePath, fileHash, fileSize});
+            const accepted = getQueue().enqueue({uploadId, filename, filePath, fileHash, fileSize});
 
             if(!accepted){
                 console.log(`[gRPC] Queue became full while uploading ${filename}`);
@@ -272,7 +272,7 @@ function uploadVideo(call, callback){
             uploadRegistry.delete(uploadId);
 
             console.log(`[gRPC] Upload received: ${filename}`);
-            console.log(`[gRPC] Queue size: ${queue.size}`);
+            console.log(`[gRPC] Queue size: ${getQueue().size}`);
 
             callback(null, {status: "UPLOAD_STATUS_ACCEPTED", message: "Video accepted for processing."});
 
@@ -298,8 +298,8 @@ function uploadVideo(call, callback){
     call.on("error", error => {
         uploadFailed = true;
         console.error("[gRPC] Stream error: ", error);
-        if (writeStream) { 
-            writeStream.destroy(); 
+        if (writeStream) {
+            writeStream.destroy();
         }
 
         if (filePath) {

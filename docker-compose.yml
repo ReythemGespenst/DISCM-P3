@@ -27,7 +27,7 @@ services:
     environment:
       - CONSUMER_HOST=consumer
       - CONSUMER_PORT=50051
-      - PRODUCER_THREADS=2
+      - PRODUCER_THREADS=4
     networks:
       - upload-network
 

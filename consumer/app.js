@@ -7,11 +7,11 @@ async function main() {
     console.log("Starting consumers...");
     console.log(`Consumer workers: ${consumerCount}`);
 
+    startWorkers(consumerCount);
+
     await startGrpcServer();
 
     await startWebServer();
-
-    startWorkers(consumerCount);
     
     console.log("Consumer is ready.");
 }
