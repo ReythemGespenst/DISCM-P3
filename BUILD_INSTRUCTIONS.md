@@ -11,6 +11,8 @@ User inputs:
 Once you're ready, open the terminal at the root folder where you unzipped the zip file the project is contained in. Run the following command to start:
 docker compose up --build
 
+afterwards, you can find the GUI being hosted at localhost:3000
+
 If you want to clean up the automatically generated storage directory in consumer, run 
 npm run clean 
 to clean up the storage
